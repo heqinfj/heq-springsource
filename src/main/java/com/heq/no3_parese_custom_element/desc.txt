@@ -1,0 +1,90 @@
+spring.handlers 与 spring.schemas 文件,默认位置是在工程的/META-INF/文件夹下;
+如果要更改路径,则要通过spring的扩展或修改spring源码的方法修改路径;
+-------------------------------------------------------------------------------
+IOC 之解析自定义标签
+http://cmsblogs.com/?p=2841
+
+
+解析自定义标签
+
+例子演示了 Spring 自定义标签的使用，下面就来分析自定义标签的解析过程。
+DefaultBeanDefinitionDocumentReader.parseBeanDefinitions() 负责标签的解析工作，
+其中它根据命名空间的不同进行不同标签的解析，其中自定义标签由 delegate.parseCustomElement() 实现。
+
+------------------------------------------------------------------------------------------------------------------------------
+奇怪问题：
+DefaultNamespaceHandlerResolver 中 handlerMappings 如何初始化
+
+https://www.cnblogs.com/morewindows0/p/10002492.html
+
+https://www.cnblogs.com/root429/p/9251318.html
+https://stackoverflow.com/questions/27478340/is-there-any-built-in-thread-manipulating-defaultnamespacehandlerresolver-in-spr
+idea debug的时候会开启一个线程执行 toString，所以我们一般不要在toString 做什么操作。
+
+--分析如下：
+Also, this confuses me, I think this is no built-in thread or other thread manipulate this field in Spring.
+I find that there is toString() method as follows(here) which will execute the getHandlerMappings() method.
+
+@Override
+public String toString() {
+    return "NamespaceHandlerResolver using mappings " + getHandlerMappings();
+}
+When we debug in IntelliJ or Eclipse, I think the IDE will execute the toString() method in another thread to show the human readable value of the object.
+
+Here is the test code：
+public class ToStringTest {
+
+    public static void main(String[] args) {
+
+        WilltoStringInvoked will = new WilltoStringInvoked();
+
+        // #breakpoint1
+        System.out.println("If breakpoint here value will be 1");
+
+        /**
+         * If we set an breakpoint before this method the output will
+         * be 1, otherwise the output will be 0
+         */
+        System.out.println(will.getValue());
+
+        // #breakpoint2
+        System.out.println("If breakpoint here value will be 0");
+    }
+
+    static class WilltoStringInvoked {
+
+        private volatile  int value = 0;
+
+        private int setValue() {
+           if (value == 0) {
+               synchronized (this) {
+                   if (value == 0) {
+                       value = 1;
+                   }
+               }
+           }
+
+           return value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        @Override
+        public String toString() {
+            return "This value is: " + setValue();
+        }
+    }
+}
+
+--------------------------------------------------------------------------------------
+https://blog.csdn.net/axzsd/article/details/79206172
+Class.cast方法
+核心为：a = A.class.cast(b1); 把a转化为了B类型，此处容易产生把b1转成A类型误解。
+上面这个说法是错误的，其实就是把b1类型强制转换成了A类型，此时a指向b1（父类引用指向子类对象），
+之所以a.getClass()输出的是B类型，
+这是因为对象在获取Class（a.getClass()）的时候和类.class（A.class）不同(a.getClass()返回引用a运行时真正所指的对象(因为:儿子对象的引用可能会赋给父对象的引用变量中)所属的类的Class的对象)，
+具体可以参考:
+http://blog.sina.com.cn/s/blog_7ffb8dd5010127ix.html
+
